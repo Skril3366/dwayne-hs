@@ -42,7 +42,7 @@ instance RenderTask Task b where
     renderTags [] = Nothing
     renderTags ts = Just $ T.concat [":", T.intercalate ":" ts, ":"]
 
-  renderCompactWithColors scheme task = 
+  renderCompactWithColors scheme task =
     hBox $ catMaybes
       [ Just $ withAttr (levelAttr (view level task)) $ txt $ T.replicate (view level task) "*"
       , Just $ txt " "
@@ -71,7 +71,7 @@ instance RenderTask Task b where
         , Just propertiesSection
         , Just $ txt orgPropertiesEnd
         , Just $ txt "\n"
-        , Just $ txt $ view description task
+        , Just $ txtWrap $ view description task
         ]
    where
     titleLine =
@@ -149,18 +149,23 @@ instance RenderTask Task b where
         ]
    where
     titleLineColored =
-      hBox $ catMaybes
-        [ Just $ withAttr (levelAttr (view level task)) $ txt $ T.replicate (view level task) "*"
-        , Just $ txt " "
-        , Just $ withAttr (todoKeywordAttr (view todoKeyword task)) $ txt $ view todoKeyword task
-        , Just $ txt " "
-        , case view priority task of
-            Just p -> fmap (withAttr (priorityAttr p)) (renderPriorityWidget p)
-            Nothing -> Nothing
-        , Just $ txt $ view title task
-        , fmap (withAttr tagAttr) (renderTagsWidget (view tags task))
-        ]
-    
+      txtWrap $
+        T.unwords $
+          catMaybes
+            [ Just $ T.replicate (view level task) "*"
+            , Just $ view todoKeyword task
+            , view priority task >>= renderPriorityText
+            , Just $ view title task
+            , renderTagsText (view tags task)
+            ]
+     where
+      renderPriorityText p
+        | p >= 0 = Just $ T.concat ["[#", T.singleton (chr $ ord 'A' + p), "]"]
+        | otherwise = Nothing
+
+      renderTagsText [] = Nothing
+      renderTagsText ts = Just $ T.concat [":", T.intercalate ":" ts, ":"]
+
     timeFieldsLineColored =
       withAttr timeFieldAttr $ txt $
         T.unwords $
@@ -171,8 +176,8 @@ instance RenderTask Task b where
             , (orgClosedField, view closed)
             ]
 
-    propertiesSectionColored = 
-      withAttr propertyAttr $ txt $ 
+    propertiesSectionColored =
+      withAttr propertyAttr $ txt $
         T.intercalate "\n" (fmap (\(key, value) -> T.concat [":", key, ": ", value]) (view properties task))
 
     renderTimeField :: TimeField -> OrgTime -> T.Text
